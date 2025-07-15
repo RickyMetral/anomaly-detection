@@ -4,10 +4,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms, models
-import os
-
-train_path = os.path.join("dataset", "train")
-test_path = os.path.join("dataset", "test")
+import random
+import matplotlib.pyplot as plt
 
 
 transform = transforms.Compose([
@@ -49,12 +47,8 @@ class AnomalyDetection(nn.Module):
         x = F.relu(self.linear1(x))
 
         return F.Sigmoid(x)
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
-from torchvision import datasets, transforms, models
+
+
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -69,7 +63,6 @@ loss_fn = nn.BCELoss()
 
 model.classifier[3] = nn.Linear(1280, 1)
 model.classifier.add_module("4", nn.Sigmoid())
-
 
 def train(model, epoch):
     model.train()
@@ -93,24 +86,20 @@ def test(model):
         for data, target in loaders["test"]:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            # Reshape target to match output shape and convert to float
-            test_loss = loss_fn(output, target.unsqueeze(1).float()).item()
-            pred = output.argmax(dim = 1, keepdim = True)
+            test_loss += loss_fn(output, target.unsqueeze(1).float()).item() * len(data) # Multiply by batch size to get total loss for the batch
+            pred = (output >= 0.5).squeeze() # Remove the extra dimension
             correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss/=len(loaders["test"].dataset)
     print(f"\nTest Set: Average Loss: {test_loss:.4f}, Accuracy {correct}/{len(loaders['test'].dataset)} ({100* correct / len(loaders['test'].dataset):.0f}%\n)")
 
-for epoch in range(1, 11):
+for epoch in range(1, 5):
     train(model, epoch)
     test(model)
-    import random
 
-import matplotlib.pyplot as plt
-from torchvision import transforms
 
 model.eval()
-preds = ['five', "four", 'one', 'three', 'two']
+preds = ['Anomaly', "Normal"]
 
 # Get a random sample from the dataset
 index = random.randint(0, len(test_data) - 1)
@@ -122,8 +111,8 @@ data = data.unsqueeze(0).to(device)
 
 # Inference
 output = model(data)
-pred = output.argmax(dim=1, keepdim=True).item()
-print(f"Predicted Label: {pred}")
+pred = (target >= 0.5)
+print(f"Label: {preds[target]}")
 
 # Convert the image tensor for display
 # Assuming the tensor shape is [1, 28, 28] (grayscale), we squeeze and use matplotlib
